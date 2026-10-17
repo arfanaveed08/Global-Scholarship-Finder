@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Scholarship Finder</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  header {
+    text-align: center;
+    color: white;
+    padding: 30px 0;
+  }
+  header h1 { font-size: 2.5rem; margin-bottom: 8px; }
+  header p { opacity: 0.9; font-size: 1.1rem; }
+  .search-box {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    margin-bottom: 24px;
+  }
+  .search-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  input, select {
+    flex: 1;
+    min-width: 180px;
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: #667eea; }
+  button {
+    padding: 12px 28px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  button:hover { background: #5568d3; }
+  button:active { transform: scale(0.98); }
+  .stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    backdrop-filter: blur(10px);
+  }
+  .results { display: grid; gap: 16px; }
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .card h3 { color: #2d3748; font-size: 1.25rem; }
+  .flag { font-size: 1.5rem; }
+  .tags { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .tag {
+    background: #edf2f7;
+    color: #4a5568;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  .tag.funding { background: #c6f6d5; color: #22543d; }
+  .tag.deadline { background: #fed7d7; color: #742a2a; }
+  .card p { color: #4a5568; line-height: 1.5; font-size: 0.95rem; }
+  .detail-info {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+    display: none;
+    font-size: 0.9rem;
+  }
+  .detail-info.open { display: block; }
+  .detail-info p { margin-bottom: 8px; }
+  .detail-info a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .detail-info a:hover { text-decoration: underline; }
+  .no-results {
+    background: white;
+    border-radius: 14px;
+    padding: 40px;
+    text-align: center;
+    color: #718096;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🎓 Global Scholarship Finder</h1>
+    <p>Search international scholarships for studying abroad</p>
+  </header>
+
+  <div class="search-box">
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="🔍 Search by name, country, or field...">
+      <select id="levelFilter">
+        <option value="">All Levels</option>
+        <option value="Bachelor">Bachelor's</option>
+        <option value="Master">Master's</option>
+        <option value="PhD">PhD</option>
+        <option value="Any">Any Level</option>
+      </select>
+      <select id="countryFilter">
+        <option value="">All Countries</option>
+      </select>
+    </div>
+    <button onclick="resetFilters()">Reset Filters</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div class="results" id="results"></div>
+</div>
+
+<script>
+// ---------- SCHOLARSHIP DATABASE ----------
+const scholarships = [
+  {
+    name: "Fulbright Foreign Student Program",
+    country: "United States",
+    flag: "🇺🇸",
+    level: ["Master", "PhD"],
+    field: "All fields",
+    funding: "Full funding",
+    deadline: "Varies by country (usually May–Oct)",
+    description: "One of the most prestigious international scholarships, funding graduate study, research, and research in the US for students from over 160 countries.",
+    link: "https://foreign.fulbrightonline.org/"
+  },
+  {
+    name: "Chevening Scholarship",
+    country: "United Kingdom",
+    flag: "🇬🇧",
+    level: ["Master"],
+    field: "All fields",
+    funding: "Full tuition + stipend",
+    deadline: "Usually November",
+    description: "UK government scholarship for outstanding emerging leaders from around the world to study a one-year master's degree in the UK.",
+    link: "https://www.chevening.org/"
+  },
+  {
+    name: "Erasmus Mundus Joint Masters",
+    country: "European Union",
+    flag: "🇪🇺",
+    level: ["Master"],
+    field: "All fields",
+    funding: "Full funding + travel",
+    deadline: "Varies by program (Dec–Jan)",
+    description: "EU-funded program offering joint master's degrees across multiple European universities, with generous scholarships covering tuition, travel, and living costs.",
+    link: "https://erasmus-plus.ec.europa.eu/opportunities/opportunities-for-individuals/students/erasmus-mundus-joint-masters"
+  },
+  {
+    name: "Rhodes Scholarship",
+    country: "United Kingdom",
+    flag: "🇬🇧",
+    level: ["Master", "PhD"],
+    field: "All fields",
+    funding: "Full funding",
+    deadline: "Varies by country (July–Oct)",
+    description: "The oldest graduate scholarship in the world, funding postgraduate study at the University of Oxford for exceptional students worldwide.",
+    link: "https://www.rhodeshouse.ox.ac.uk/scholarships/"
+  },
+  {
+    name: "DAAD Scholarship",
+    country: "Germany",
+    flag: "🇩🇪",
+    level: ["Master", "PhD"],
+    field: "All fields",
+    funding: "Monthly stipend + benefits",
+    deadline: "Varies by program",
+    description: "Germany's largest academic exchange organization offers scholarships for study, research, and internships in Germany at all academic levels.",
+    link: "https://www.daad.de/en/"
+  },
+  {
+    name: "MEXT Scholarship",
+    country: "Japan",
+    flag: "🇯🇵",
+    level: ["Bachelor", "Master", "PhD"],
+    field: "All fields",
+    funding: "Full funding + stipend",
+    deadline: "Varies by embassy (usually Apr–Jun)",
+    description: "Japanese government scholarship for international students to study at Japanese universities, covering tuition, airfare, and monthly allowance.",
+    link: "https://www.studyinjapan.go.jp/en/planning/scholarship/"
+  },
+  {
+    name: "Australia Awards",
+    country: "Australia",
+    flag: "🇦🇺",
+    level: ["Master", "PhD"],
+    field: "Development-related fields",
+    funding: "Full funding",
+    deadline: "Varies by country (Feb–Apr)",
+    description: "Australian government scholarships for students from developing countries to study in Australia, focusing on development-related fields.",
+    link: "https://www.dfat.gov.au/people-to-people/australia-awards"
+  },
+  {
+    name: "Vanier Canada Graduate Scholarships",
+    country: "Canada",
+    flag: "🇨🇦",
+    level: ["PhD"],
+    field: "Health, Natural Sciences, Engineering, Social Sciences",
+    funding: "CAD $50,000/year for 3 years",
+    deadline: "Usually November",
+    description: "Prestigious Canadian scholarship for doctoral students demonstrating academic excellence, research potential, and leadership.",
+    link: "https://vanier.gc.ca/"
+  },
+  {
+    name: "Swiss Government Excellence Scholarships",
+    country: "Switzerland",
+    flag: "🇨🇭",
+    level: ["Master", "PhD"],
+    field: "All fields",
+    funding: "Monthly stipend + tuition",
+    deadline: "Varies (usually Sept–Nov)",
+    description: "Swiss government scholarships for foreign researchers and artists to pursue postgraduate studies or research in Switzerland.",
+    link: "https://www.sbfi.admin.ch/sbfi/en/home/education/scholarships-and-grants/swiss-government-excellence-scholarships.html"
+  },
+  {
+    name: "Chinese Government Scholarship (CSC)",
+    country: "China",
+    flag: "🇨🇳",
+    level: ["Bachelor", "Master", "PhD"],
+    field: "All fields",
+    funding: "Full tuition + stipend",
+    deadline: "Varies (usually Jan–Apr)",
+    description: "Chinese government scholarship for international students to study at Chinese universities, covering tuition, accommodation, and living allowance.",
+    link: "https://www.campuschina.org/"
+  },
+  {
+    name: "Gates Cambridge Scholarship",
+    country: "United Kingdom",
+    flag: "🇬🇧",
+    level: ["Master", "PhD"],
+    field: "All fields",
+    funding: "Full funding",
+    deadline: "Varies by course (Oct–Jan)",
+    description: "Full-cost scholarship for outstanding international students to pursue postgraduate study at the University of Cambridge.",
+    link: "https://www.gatescambridge.org/"
+  },
+  {
+    name: "Knight-Hennessy Scholars",
+    country: "United States",
+    flag: "🇺🇸",
+    level: ["Master", "PhD"],
+    field: "All fields",
+    funding: "Full funding",
+    deadline: "Usually October",
+    description: "Stanford University scholarship for graduate students from around the world, funding full tuition and living expenses with a focus on leadership.",
+    link: "https://knight-hennessy.stanford.edu/"
+  },
+  {
+    name: "Eiffel Excellence Scholarship",
+    country: "France",
+    flag: "🇫🇷",
+    level: ["Master", "PhD"],
+    field: "All fields",
+    funding: "Monthly stipend + travel",
+    deadline: "Usually January",
+    description: "French government scholarship to attract top international students to French higher education institutions.",
+    link: "https://www.campusfrance.org/en/eiffel-scholarship-program-of-excellence"
+  },
+  {
+    name: "Clarendon Fund Scholarships",
+    country: "United Kingdom",
+    flag: "🇬🇧",
+    level: ["Master", "PhD"],
+    field: "All fields",
+    funding: "Full or partial funding",
+    deadline: "Varies by course (Jan)",
+    description: "University of Oxford scholarship for academically excellent international students, covering tuition and living costs.",
+    link: "https://www.ox.ac.uk/clarendon"
+  },
+  {
+    name: "Hong Kong PhD Fellowship Scheme",
+    country: "Hong Kong",
+    flag: "🇭🇰",
+    level: ["PhD"],
+    field: "All fields",
+    funding: "Monthly stipend + research allowance",
+    deadline: "Usually December",
+    description: "Fellowship attracting top international students to pursue PhD studies at Hong Kong universities.",
+    link: "https://cerg1.ugc.edu.hk/hkpfs/index.html"
+  },
+  {
+    name: "Türkiye Bursları",
+    country: "Turkey",
+    flag: "🇹🇷",
+    level: ["Bachelor", "Master", "PhD"],
+    field: "All fields",
+    funding: "Full funding + stipend",
+    deadline: "Usually Jan–Feb",
+    description: "Turkish government scholarship for international students covering tuition, accommodation, monthly stipend, and Turkish language course.",
+    link: "https://turkiyeburslari.gov.tr/"
+  },
+  {
+    name: "Swedish Institute Scholarships",
+    country: "Sweden",
+    flag: "🇸🇪",
+    level: ["Master"],
+    field: "All fields",
+    funding: "Full tuition + living costs",
+    deadline: "Usually February",
+    description: "Swedish government scholarships for international students from select countries to pursue master's studies in Sweden.",
+    link: "https://si.se/en/apply/scholarships/"
+  },
+  {
+    name: "Singapore International Graduate Award (SINGA)",
+    country: "Singapore",
+    flag: "🇸🇬",
+    level: ["PhD"],
+    field: "Science, Engineering",
+    funding: "Full funding + stipend",
+    deadline: "Varies (usually Dec–Jun)",
+    description: "Award for international students to pursue PhD studies in science and engineering at Singaporean universities.",
+    link: "https://www.a-star.edu.sg/singa-award/"
+  },
+  {
+    name: "New Zealand Scholarships",
+    country: "New Zealand",
+    flag: "🇳🇿",
+    level: ["Bachelor", "Master", "PhD"],
+    field: "All fields",
+    funding: "Full funding",
+    deadline: "Varies by country",
+    description: "New Zealand government scholarships for students from developing countries to study in New Zealand.",
+    link: "https://www.nzscholarships.govt.nz/"
+  },
+  {
+    name: "Korean Government Scholarship Program (KGSP)",
+    country: "South Korea",
+    flag: "🇰🇷",
+    level: ["Bachelor", "Master", "PhD"],
+    field: "All fields",
+    funding: "Full funding + stipend",
+    deadline: "Varies (usually Feb–Mar)",
+    description: "Korean government scholarship for international students covering tuition, living expenses, Korean language training, and airfare.",
+    link: "https://www.studyinkorea.go.kr/"
+  }
+];
+
+// ---------- STATE ----------
+let filtered = [...scholarships];
+
+// ---------- INIT ----------
+function init() {
+  const countrySelect = document.getElementById('countryFilter');
+  const countries = [...new Set(scholarships.map(s => s.country))].sort();
+  countries.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    countrySelect.appendChild(opt);
+  });
+
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('levelFilter').addEventListener('change', applyFilters);
+  document.getElementById('countryFilter').addEventListener('change', applyFilters);
+
+  render();
+}
+
+// ---------- FILTERING ----------
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const level = document.getElementById('levelFilter').value;
+  const country = document.getElementById('countryFilter').value;
+
+  filtered = scholarships.filter(s => {
+    const matchesQuery = !q ||
+      s.name.toLowerCase().includes(q) ||
+      s.country.toLowerCase().includes(q) ||
+      s.field.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q);
+    const matchesLevel = !level || s.level.includes(level) || (level === 'Any' && s.level.includes('Any'));
+    const matchesCountry = !country || s.country === country;
+    return matchesQuery && matchesLevel && matchesCountry;
+  });
+
+  render();
+}
+
+function resetFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('levelFilter').value = '';
+  document.getElementById('countryFilter').value = '';
+  filtered = [...scholarships];
+  render();
+}
+
+// ---------- RENDERING ----------
+function render() {
+  const stats = document.getElementById('stats');
+  stats.innerHTML = `
+    <span class="stat">📚 ${filtered.length} scholarship${filtered.length !== 1 ? 's' : ''} found</span>
+    <span class="stat">🌍 ${new Set(filtered.map(s => s.country)).size} countries</span>
+  `;
+
+  const results = document.getElementById('results');
+  if (filtered.length === 0) {
+    results.innerHTML = `<div class="no-results">
+      <h3>No scholarships found</h3>
+      <p>Try adjusting your search or filters.</p>
+    </div>`;
+    return;
+  }
+
+  results.innerHTML = filtered.map((s, i) => `
+    <div class="card" onclick="toggleDetail(this)">
+      <div class="card-header">
+        <h3>${s.flag} ${s.name}</h3>
+      </div>
+      <div class="tags">
+        <span class="tag">${s.country}</span>
+        ${s.level.map(l => `<span class="tag">${l}</span>`).join('')}
+        <span class="tag funding">💰 ${s.funding}</span>
+        <span class="tag deadline">⏰ ${s.deadline}</span>
+      </div>
+      <p>${s.description}</p>
+      <div class="detail-info">
+        <p><strong>Field of study:</strong> ${s.field}</p>
+        <p><strong>Deadline:</strong> ${s.deadline}</p>
+        <p><a href="${s.link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Visit official website →</a></p>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleDetail(card) {
+  const detail = card.querySelector('.detail-info');
+  detail.classList.toggle('open');
+}
+
+// ---------- START ----------
+init();
+</script>
+</body>
+</html>
